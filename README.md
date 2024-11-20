@@ -47,7 +47,7 @@ To guarantee unbeatable play on the highest difficulty setting, the engine drops
 ### Prerequisites
 
 * Python 3.8 or higher
-* Pip package manager
+* Pip package manager or you can use UV which i am also using.
 
 ### 1. Clone the Repository
 

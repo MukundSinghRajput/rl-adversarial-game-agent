@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TIC TAC TOE — AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet"/>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #050508;
+      --panel:    #0a0a12;
+      --border:   #1a1a2e;
+      --grid:     #14142a;
+      --x:        #00ffe1;
+      --o:        #ff3cac;      
+      --gold:     #ffd700;
+      --dim:      #3a3a5c;
+      --text:     #c8c8e8;
+      --mono:     'Share Tech Mono', monospace;
+      --display:  'Orbitron', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.15) 2px,
+        rgba(0,0,0,0.15) 4px
+      );
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,225,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,225,0.025) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    * { position: relative; z-index: 1; }
+
+    header {
+      text-align: center;
+      letter-spacing: 4px;
+    }
+
+    .title-top {
+      font-family: var(--display);
+      font-size: clamp(0.5rem, 2vw, 0.7rem);
+      font-weight: 400;
+      color: var(--dim);
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .title-main {
+      font-family: var(--display);
+      font-size: clamp(1.6rem, 5vw, 2.8rem);
+      font-weight: 900;
+      background: linear-gradient(90deg, var(--x) 0%, #a78bfa 50%, var(--o) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 12px rgba(0,255,225,0.3));
+      text-transform: uppercase;
+    }
+
+    .scores {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--panel);
+    }
+
+    .score-block {
+      padding: 10px 28px;
+      text-align: center;
+      border-right: 1px solid var(--border);
+    }
+    .score-block:last-child { border-right: none; }
+
+    .score-lbl {
+      font-size: 0.6rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .score-block.you  .score-lbl { color: var(--x); }
+    .score-block.ai   .score-lbl { color: var(--o); }
+    .score-block.draw .score-lbl { color: var(--dim); }
+
+    .score-num {
+      font-family: var(--display);
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+    .score-block.you  .score-num { color: var(--x);  text-shadow: 0 0 10px var(--x); }
+    .score-block.ai   .score-num { color: var(--o);  text-shadow: 0 0 10px var(--o); }
+    .score-block.draw .score-num { color: var(--dim); }
+
+    .status-wrap {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #status {
+      font-size: 0.88rem;
+      letter-spacing: 2px;
+      color: var(--text);
+      text-transform: uppercase;
+      transition: opacity 0.3s;
+    }
+    #status.flash {
+      animation: status-flash 0.5s ease;
+    }
+    @keyframes status-flash {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    .board-wrap {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow:
+        0 0 0 1px #0d0d20,
+        0 0 40px rgba(0,255,225,0.04),
+        0 0 80px rgba(255,60,172,0.03),
+        inset 0 0 30px rgba(0,0,0,0.5);
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .cell {
+      width:  clamp(90px, 18vw, 120px);
+      height: clamp(90px, 18vw, 120px);
+      background: var(--grid);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.18s, background 0.18s, transform 0.12s, box-shadow 0.18s;
+      user-select: none;
+    }
+
+    .cell:hover:not(.taken):not(.locked) {
+      border-color: rgba(0,255,225,0.45);
+      background: rgba(0,255,225,0.04);
+      transform: scale(1.04);
+      box-shadow: 0 0 18px rgba(0,255,225,0.12);
+    }
+
+    .cell.taken { cursor: default; }
+    .cell.locked { cursor: not-allowed; }
+
+    .mark-x {
+      font-family: var(--display);
+      font-size: clamp(2rem, 8vw, 3rem);
+      font-weight: 900;
+      color: var(--x);
+      text-shadow: 0 0 14px var(--x), 0 0 30px rgba(0,255,225,0.4);
+      animation: mark-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+
+    .mark-o {
+      font-family: var(--display);
+      font-size: clamp(2rem, 8vw, 3rem);
+      font-weight: 900;
+      color: var(--o);
+      text-shadow: 0 0 14px var(--o), 0 0 30px rgba(255,60,172,0.4);
+      animation: mark-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+
+    @keyframes mark-in {
+      from { transform: scale(0) rotate(-25deg); opacity: 0; }
+      to   { transform: scale(1) rotate(0deg);   opacity: 1; }
+    }
+
+    .cell.winner {
+      animation: win-pulse 0.7s ease-in-out infinite alternate;
+    }
+    .cell.winner-x {
+      border-color: var(--x);
+      background: rgba(0,255,225,0.08);
+    }
+    .cell.winner-o {
+      border-color: var(--o);
+      background: rgba(255,60,172,0.08);
+    }
+    @keyframes win-pulse {
+      from { box-shadow: 0 0 8px rgba(255,215,0,0.3); }
+      to   { box-shadow: 0 0 28px rgba(255,215,0,0.75); border-color: var(--gold); }
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    label.diff-label {
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    select {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--dim);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      letter-spacing: 1px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    select:hover, select:focus { border-color: var(--x); }
+
+    .btn {
+      font-family: var(--display);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      padding: 10px 28px;
+      border-radius: 6px;
+      border: 1px solid var(--x);
+      background: transparent;
+      color: var(--x);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:hover {
+      background: var(--x);
+      color: #000;
+      box-shadow: 0 0 20px rgba(0,255,225,0.35), 0 0 40px rgba(0,255,225,0.15);
+    }
+    .btn:active { transform: scale(0.97); }
+
+    #thinking {
+      display: none;
+      gap: 6px;
+    }
+    #thinking.active { display: flex; }
+    .dot {
+      width: 7px; height: 7px;
+      background: var(--o);
+      border-radius: 50%;
+      animation: blink 1.2s ease infinite;
+      box-shadow: 0 0 6px var(--o);
+    }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink {
+      0%, 80%, 100% { transform: scale(1);   opacity: 0.5; }
+      40%           { transform: scale(1.4); opacity: 1;   }
+    }
+
+    footer {
+      font-size: 0.62rem;
+      letter-spacing: 2px;
+      color: var(--dim);
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    #overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    #overlay.show { display: flex; }
+    #overlay-text {
+      font-family: var(--display);
+      font-size: clamp(2rem, 8vw, 4rem);
+      font-weight: 900;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      animation: overlay-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+      pointer-events: none;
+    }
+    @keyframes overlay-in {
+      from { transform: scale(0.4); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    #overlay-text.win  { color: var(--x); text-shadow: 0 0 30px var(--x), 0 0 60px rgba(0,255,225,0.4); }
+    #overlay-text.lose { color: var(--o); text-shadow: 0 0 30px var(--o), 0 0 60px rgba(255,60,172,0.4); }
+    #overlay-text.draw { color: var(--gold); text-shadow: 0 0 30px var(--gold); }
+  </style>
+</head>
+
+<body>
+  <div id="overlay"><div id="overlay-text"></div></div>
+
+  <header>
+    <div class="title-top">Q-Learning Neural Agent</div>
+    <div class="title-main">Tic Tac Toe</div>
+  </header>
+
+  <div class="scores">
+    <div class="score-block you">
+      <div class="score-lbl">You &nbsp;[X]</div>
+      <div class="score-num" id="score-x">0</div>
+    </div>
+    <div class="score-block draw">
+      <div class="score-lbl">Draw</div>
+      <div class="score-num" id="score-d">0</div>
+    </div>
+    <div class="score-block ai">
+      <div class="score-lbl">AI &nbsp;[O]</div>
+      <div class="score-num" id="score-o">0</div>
+    </div>
+  </div>
+
+  <div class="status-wrap">
+    <div id="status">Your move — place X anywhere</div>
+    <div id="thinking">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+  </div>
+
+  <div class="board-wrap">
+    <div id="board"></div>
+  </div>
+
+  <div class="controls">
+    <label class="diff-label" for="difficulty">Difficulty:</label>
+    <select id="difficulty">
+      <option value="easy">Easy — Rookie</option>
+      <option value="medium">Medium — Smart</option>
+      <option value="hard" selected>Hard — Unbeatable</option>
+    </select>
+    <button class="btn" id="new-game-btn">New Game</button>
+  </div>
+
+  <footer>You are X · AI is O · You go first · Q-Learning + Minimax</footer>
+
+  <script>
+    let board    = Array(9).fill(0);
+    let gameOver = false;
+    let aiTurn   = false;
+    const scores = { x: 0, d: 0, o: 0 };
+
+    const WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+    const boardEl    = document.getElementById('board');
+    const statusEl   = document.getElementById('status');
+    const thinkEl    = document.getElementById('thinking');
+    const overlayEl  = document.getElementById('overlay');
+    const overlayTxt = document.getElementById('overlay-text');
+
+    for (let i = 0; i < 9; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.idx = i;
+      cell.addEventListener('click', () => onCellClick(i));
+      boardEl.appendChild(cell);
+    }
+
+    function allCells() { return boardEl.querySelectorAll('.cell'); }
+
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+      statusEl.classList.remove('flash');
+      void statusEl.offsetWidth;     
+      statusEl.classList.add('flash');
+    }
+
+    function setThinking(on) {
+      thinkEl.classList.toggle('active', on);
+      statusEl.style.display = on ? 'none' : '';
+      thinkEl.style.display  = on ? ''     : 'none';
+    }
+
+    function checkWinner(b) {
+      for (const [a, c, d] of WINS) {
+        if (b[a] && b[a] === b[c] && b[c] === b[d])
+          return { winner: b[a], combo: [a, c, d] };
+      }
+      if (b.every(v => v !== 0)) return { winner: 0, combo: [] };
+      return null;
+    }
+
+    function placeMark(idx, player) {
+      board[idx] = player;
+      const cell = allCells()[idx];
+      cell.classList.add('taken');
+      const cls   = player === 1 ? 'mark-x' : 'mark-o';
+      const label = player === 1 ? 'X' : 'O';
+      cell.innerHTML = `<span class="${cls}">${label}</span>`;
+    }
+
+    function onCellClick(idx) {
+      if (gameOver || aiTurn || board[idx] !== 0) return;
+      placeMark(idx, 1);
+
+      const result = checkWinner(board);
+      if (result) { endGame(result); return; }
+
+      requestAIMove();
+    }
+
+    async function requestAIMove() {
+      aiTurn = true;
+      setThinking(true);
+      allCells().forEach(c => { if (!c.classList.contains('taken')) c.classList.add('locked'); });
+
+      await new Promise(r => setTimeout(r, 350 + Math.random() * 300));
+
+      try {
+        const diff = document.getElementById('difficulty').value;
+        const res  = await fetch('/ai_move', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ board: [...board], difficulty: diff })
+        });
+        const data = await res.json();
+
+        setThinking(false);
+        allCells().forEach(c => c.classList.remove('locked'));
+        aiTurn = false;
+
+        if (data.move >= 0 && !gameOver) {
+          placeMark(data.move, 2);
+          const result = checkWinner(board);
+          if (result) { endGame(result); return; }
+          setStatus('Your move — place X anywhere');
+        }
+      } catch (err) {
+        setThinking(false);
+        allCells().forEach(c => c.classList.remove('locked'));
+        aiTurn = false;
+        setStatus('Connection error — try refreshing.');
+      }
+    }
+
+    function endGame(result) {
+      gameOver = true;
+
+      if (result.winner === 1) {
+        result.combo.forEach(i => allCells()[i].classList.add('winner', 'winner-x'));
+        scores.x++;
+        flashOverlay('You Win!', 'win');
+        setStatus('🏆 You win! Well played.');
+      } else if (result.winner === 2) {
+        result.combo.forEach(i => allCells()[i].classList.add('winner', 'winner-o'));
+        scores.o++;
+        flashOverlay('AI Wins', 'lose');
+        setStatus('🤖 AI wins! Try again.');
+      } else {
+        scores.d++;
+        flashOverlay('Draw!', 'draw');
+        setStatus("🤝 It's a draw — evenly matched!");
+      }
+
+      document.getElementById('score-x').textContent = scores.x;
+      document.getElementById('score-d').textContent = scores.d;
+      document.getElementById('score-o').textContent = scores.o;
+
+      setTimeout(resetGame, 2800);
+    }
+
+    function flashOverlay(text, cls) {
+      overlayTxt.textContent = text;
+      overlayTxt.className   = cls;
+      overlayEl.classList.add('show');
+      setTimeout(() => overlayEl.classList.remove('show'), 1400);
+    }
+
+    function resetGame() {
+      board.fill(0);
+      gameOver = false;
+      aiTurn   = false;
+
+      allCells().forEach(c => {
+        c.className = 'cell';
+        c.innerHTML = '';
+      });
+
+      setThinking(false);
+      setStatus('Your move — place X anywhere');
+    }
+
+    document.getElementById('new-game-btn').addEventListener('click', resetGame);
+
+    setStatus('Your move — place X anywhere');
+  </script>
+</body>
+</html>
